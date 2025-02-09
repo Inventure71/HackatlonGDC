@@ -150,6 +150,7 @@ class Env:
             else:
                 self.advanced_UI.display_background(0)
 
+
         self.steps += 1
 
         players_info = {}
@@ -224,6 +225,7 @@ class Env:
 
         # In training mode, you might not call tick or you can use a high tick rate.
         if not self.training_mode:
+            print("FPS:", self.clock.get_fps())
             self.clock.tick(120)
         else:
             self.clock.tick(10000000)  # Use a high FPS limit in training mode.
@@ -267,15 +269,16 @@ class Env:
         Reward function for training bots.
 
         Reward components (one-time per step):
-          1. Walking: if the bot moves, +1 (only if it moved this step).
-          2. Exploring: if the bot enters a new grid cell (e.g., 100x100), +5.
-          3. Damage: reward the damage inflicted this frame.
-          4. Kill: reward massively for new kills (+20 per kill).
+          1. Walking: if the bot moves, +0.05 (only if it moved this step).
+          2. Exploring: if the bot enters a new grid cell (e.g., 100x100), +1.
+          3. Damage: reward the damage inflicted this frame (2 points per damage unit).
+          4. Kill: reward for new kills (+15 per kill).
           5. Negative reward for missing: if a shot was fired and no damage was dealt, -1.
-          6. Negative reward if hit by enemy: if health decreases compared to last step, negative penalty.
+          6. Negative reward if hit by enemy: if health decreases compared to last step, -0.2 per health unit lost.
           7. Negative reward for staying near the borders: if within 50 pixels of any border, -1.
+          8. BONUS: if the center ray (third ray) is pointing to a player, add +1.
 
-        Additionally, all rewards are scaled by a time-based multiplier that decays over the episode.
+        Finally, all rewards are scaled by a time-based multiplier that decays over the episode.
         """
         players_info = info_dictionary.get("players_info", {})
         bot_info = players_info.get(bot_username)
@@ -283,16 +286,15 @@ class Env:
             print(f"Bot {bot_username} not found in info dictionary.")
             return 0
 
-        # Extract current values
+        # Extract current values from the bot's info.
         current_position = bot_info.get("location", [0, 0])
         damage_dealt = bot_info.get("damage_dealt", 0)
         kills = bot_info.get("kills", 0)
         alive = bot_info.get("alive", False)
         health = bot_info.get("health", 100)
-        # Expect a flag indicating if a shot was fired this frame
-        shot_fired = bot_info.get("shot_fired", False)
+        shot_fired = bot_info.get("shot_fired", False)  # Flag indicating if a shot was fired this frame
 
-        # Initialize tracking dictionaries if necessary
+        # Initialize tracking dictionaries if necessary.
         if bot_username not in self.last_positions:
             self.last_positions[bot_username] = current_position
         if bot_username not in self.last_damage:
@@ -306,38 +308,38 @@ class Env:
 
         reward = 0
 
-        # 1. Walking reward (one-time): if moved at all, +1
+        # 1. Walking reward: if moved at all, add 0.05.
         distance_moved = math.dist(current_position, self.last_positions[bot_username])
         if distance_moved > 0:
-            reward += 0.01
+            reward += 0.05
 
-        # 2. Exploration reward (one-time): if entering a new grid cell, +1
+        # 2. Exploration reward: if entering a new grid cell, add +1.
         grid_size = 100  # Adjust as needed.
         cell = (int(current_position[0] // grid_size), int(current_position[1] // grid_size))
         if cell not in self.visited_areas[bot_username]:
-            reward += 0.1
+            reward += 0.5
             self.visited_areas[bot_username].add(cell)
 
-        # 3. Damage reward: reward the damage inflicted this frame.
+        # 3. Damage reward: reward the damage inflicted this frame (2 points per damage unit).
         delta_damage = damage_dealt - self.last_damage[bot_username]
         if delta_damage > 0:
-            reward += delta_damage * 2  # 2 point per damage unit
+            reward += delta_damage * 2
 
-        # 4. Kill reward: massive reward for new kills.
+        # 4. Kill reward: reward for new kills (+15 per kill).
         delta_kills = kills - self.last_kills[bot_username]
         if delta_kills > 0:
-            reward += delta_kills * 15  # 15 points per kill
+            reward += delta_kills * 15
 
-        # 5. Negative reward for missing: if a shot was fired and no damage occurred.
+        # 5. Negative reward for missing: if a shot was fired and no damage was dealt, subtract 1.
         if shot_fired and delta_damage <= 0:
-            reward -= 1
+            reward -= 0.05
 
-        # 6. Negative reward if hit by enemy: if health decreased.
+        # 6. Negative reward if hit by enemy: if health decreased, subtract 0.2 per lost health unit.
         delta_health = self.last_health[bot_username] - health
         if delta_health > 0:
-            reward -= delta_health * 0.2  # Adjust penalty factor as needed
+            reward -= delta_health * 0.2
 
-        # 7. Negative reward for staying near the borders.
+        # 7. Negative reward for staying near the borders: if within 50 pixels of any border, subtract 1.
         border_threshold = 50
         near_border = (
                 current_position[0] < border_threshold or
@@ -348,15 +350,25 @@ class Env:
         if near_border:
             reward -= 1
 
+        # 8. BONUS: Reward for pointing the center ray to a player.
+        # Assume that the center ray is the third one in the list (index 2).
+        rays = bot_info.get("rays", [])
+        if len(rays) >= 3:
+            center_ray = rays[2]
+            if center_ray[2] == "player":
+                reward += 0.2
+
         # Update tracking values for next step.
         self.last_positions[bot_username] = current_position
         self.last_damage[bot_username] = damage_dealt
         self.last_kills[bot_username] = kills
         self.last_health[bot_username] = health
 
-        decay_rate = 0.0001  # Determines how fast the multiplier decays per step.
+        # Apply a time-based decay multiplier to the reward.
+        decay_rate = 0.001  # Determines how fast the multiplier decays per step.
         time_multiplier = max(0.2, 1 - decay_rate * self.steps)
         reward *= time_multiplier
 
         return reward
+
 

@@ -17,6 +17,7 @@ def main():
 
     load_back = True
     state_size = 34
+    evaluating = True
 
     # Create the environment.
     env = Env(training=False,
@@ -53,7 +54,7 @@ def main():
         for idx, bot in enumerate(bots):
             save_path = f"bot_model_{idx}.pth"
             try:
-                bot.load(save_path)
+                bot.load(save_path, eval=evaluating)
                 print(f"Load model for player {players[idx].username} from {save_path}")
             except:
                 print(f"Failed to load model for player {players[idx].username} from {save_path}")
@@ -63,7 +64,7 @@ def main():
 
     # Training / Game parameters.
     time_limit = 120  # seconds per episode
-    num_epochs = 100  # number of episodes
+    num_epochs = 1000  # number of episodes
 
     for epoch in range(num_epochs):
         print(f"Starting epoch {epoch + 1}")
@@ -80,18 +81,19 @@ def main():
             # The environment calls each player's .act() method, which in turn uses the bot.
             finished, info = env.step(debugging=False)
 
-            # For each player, calculate reward, update bot memory, and train the bot.
-            for player, bot in zip(players, bots):
-                # Calculate the reward for the current step (adjust calculate_reward as needed).
-                reward = env.calculate_reward(info, player.username)
-                # Retrieve the updated state for the player.
-                next_info = player.get_info()
-                # Store the transition (last state, action, reward, next state, done).
-                bot.remember(reward, next_info, finished)
-                # Train the bot from experience.
-                bot.replay()
+            if not evaluating:
+                # For each player, calculate reward, update bot memory, and train the bot.
+                for player, bot in zip(players, bots):
+                    # Calculate the reward for the current step (adjust calculate_reward as needed).
+                    reward = env.calculate_reward(info, player.username)
+                    # Retrieve the updated state for the player.
+                    next_info = player.get_info()
+                    # Store the transition (last state, action, reward, next state, done).
+                    bot.remember(reward, next_info, finished)
+                    # Train the bot from experience.
+                    bot.replay()
 
-                #print(f"Reward for {player.username}: {reward}")
+                    #print(f"Reward for {player.username}: {reward}")
 
             # If the game/episode is over, break out of the loop.
             if finished:

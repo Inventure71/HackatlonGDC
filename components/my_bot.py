@@ -276,7 +276,7 @@ class MyBot:
         except Exception as e:
             print(f"Error saving model: {e}")
 
-    def load(self, filepath):
+    def load(self, filepath, eval=False):
         """Loads model weights from the specified file."""
         try:
             checkpoint = torch.load(filepath, map_location=self.device)
@@ -286,6 +286,10 @@ class MyBot:
             self.steps = checkpoint['steps']
             self.model.to(self.device)
             print(f"Model loaded successfully from {filepath}")
+
+            if eval:
+                self.epsilon = 0.1
+
         except Exception as e:
             print(f"Error loading model: {e}")
             print("Starting with a fresh model")

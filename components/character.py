@@ -19,10 +19,10 @@ class Character:
         self.speed = speed
         self.distance_vision = 1500
         self.damage = 20
-        self.delay = 0.3 #(between shoots), a lot of time so it is longer but more intense
+        self.delay = 0.0 #(between shoots), a lot of time so it is longer but more intense
         self.max_ammo = 30
         self.current_ammo = self.max_ammo
-        self.time_to_reload = 3
+        self.time_to_reload = 0
         self.alive = True
         self.is_reloading = False
         self.rays = []
@@ -162,12 +162,17 @@ class Character:
             self.last_shoot_time = time.time()
 
             self.current_ammo -= 1
-            if self.current_ammo <= 0 and self.start_reloading_time is None:
-                self.is_reloading = True
-                print("is reloading", self.current_ammo)
-                self.reload()
+
+            if self.time_to_reload == 0:
+                self.current_ammo = self.max_ammo
+
             else:
-                print("is reloading (technically)")
+                if self.current_ammo <= 0 and self.start_reloading_time is None:
+                    self.is_reloading = True
+                    print("is reloading", self.current_ammo)
+                    self.reload()
+                else:
+                    print("is reloading (technically)")
 
         else:
             print("no ammo")
