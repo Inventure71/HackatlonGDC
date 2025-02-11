@@ -204,8 +204,8 @@ class MyBot:
                 self.training_started = True
 
             # Perform learning step if we have enough samples
-            if self.training_started:
-                self.replay()
+            #if self.training_started:
+            #    self.replay()
 
             # Update target network periodically
             self.steps += 1

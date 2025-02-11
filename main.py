@@ -63,7 +63,7 @@ def main():
     env.set_players_bots_objects(players, bots)
 
     # Training / Game parameters.
-    time_limit = 120  # seconds per episode
+    time_limit = 10  # seconds per episode
     num_epochs = 100  # number of episodes
 
     for epoch in range(num_epochs):
@@ -81,6 +81,8 @@ def main():
             # The environment calls each player's .act() method, which in turn uses the bot.
             finished, info = env.step(debugging=False)
 
+
+            # THIS MAKES ME LOSE 20 FPS
             # For each player, calculate reward, update bot memory, and train the bot.
             for player, bot in zip(players, bots):
                 # Calculate the reward for the current step (adjust calculate_reward as needed).
@@ -89,14 +91,20 @@ def main():
                 next_info = player.get_info()
                 # Store the transition (last state, action, reward, next state, done).
                 bot.remember(reward, next_info, finished)
+
                 # Train the bot from experience.
-                bot.replay()
+                #bot.replay()
 
                 #print(f"Reward for {player.username}: {reward}")
 
             # If the game/episode is over, break out of the loop.
             if finished:
                 print("Episode finished, took {:.3f} seconds.".format(time.time() - start_time))
+                for _ in range(10):
+                    for player, bot in zip(players, bots):
+                        bot.replay()
+
+                print("Training finished.")
                 break
 
         # Optionally, save the model weights after each epoch.

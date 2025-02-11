@@ -39,10 +39,9 @@ class Env:
         self.running = True
 
         self.use_advanced_UI = use_game_ui
-        if self.use_advanced_UI:
+        if self.use_advanced_UI and not self.training_mode:
             self.advanced_UI = game_UI(self.world_surface, self.world_width, self.world_height)
 
-        if not self.training_mode and self.use_advanced_UI:
             self.advanced_UI.display_opening_screen()
 
         self.n_of_obstacles = n_of_obstacles
@@ -71,6 +70,10 @@ class Env:
         self.last_kills.clear()
         self.last_damage.clear()
 
+        self.start_time = time.time()
+        self.last_fps_check = time.time()
+        self.last_step_count = 0
+        self.fps_update_interval = 1.0
         self.steps = 0
 
     def set_players_bots_objects(self, players, bots, obstacles=None):
@@ -154,6 +157,13 @@ class Env:
                 self.world_surface.fill("purple")
 
         self.steps += 1
+        current_time = time.time()
+        if current_time - self.last_fps_check >= self.fps_update_interval:
+            elapsed_time = current_time - self.last_fps_check
+            steps_per_second = (self.steps - self.last_step_count) / elapsed_time
+            print(f"Steps per second: {steps_per_second:.2f}")
+            self.last_step_count = self.steps
+            self.last_fps_check = current_time
 
         players_info = {}
         alive_players = []
@@ -164,7 +174,6 @@ class Env:
                 alive_players.append(player)
                 player.reload()
 
-                # Only draw if not in training mode.
                 if not self.training_mode:
                     player.draw(self.world_surface)
 
@@ -183,14 +192,6 @@ class Env:
                     player.add_rotate(actions["rotate"])
                 if actions["shoot"]:
                     player.shoot()
-
-                if not self.training_mode:
-                    # Store position for trail
-                    if not hasattr(player, 'previous_positions'):
-                        player.previous_positions = []
-                    player.previous_positions.append(player.rect.center)
-                    if len(player.previous_positions) > 10:
-                        player.previous_positions.pop(0)
 
             players_info[player.username] = player.get_info()
 
@@ -217,7 +218,6 @@ class Env:
         if self.use_advanced_UI:
             self.advanced_UI.draw_everything(new_dic, self.players, self.obstacles)
         elif not self.training_mode:
-            # Draw obstacles manually if not using advanced UI
             for obstacle in self.obstacles:
                 obstacle.draw(self.world_surface)
 
