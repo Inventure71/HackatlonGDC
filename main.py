@@ -20,8 +20,8 @@ def main():
     state_size = 34
 
     # Create the environment.
-    env = Env(training=True,
-              use_game_ui=False,
+    env = Env(training=False,
+              use_game_ui=True,
               world_width=world_width,
               world_height=world_height,
               display_width=display_width,
@@ -63,7 +63,7 @@ def main():
     env.set_players_bots_objects(players, bots)
 
     # Training / Game parameters.
-    time_limit = 10  # seconds per episode
+    time_limit = 60  # seconds per episode
     num_epochs = 100  # number of episodes
 
     for epoch in range(num_epochs):
